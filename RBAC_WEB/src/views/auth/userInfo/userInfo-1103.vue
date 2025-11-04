@@ -85,7 +85,7 @@
               </template>
 
               <!-- 重置密码列：按钮触发密码重置 -->
-              <template v-else-if="col.prop === 'admin-reset-password'">
+              <template v-else-if="col.prop === 'resetPwd'">
                 <el-button
                   type="primary"
                   @click="handleReset(scope.row)"
@@ -384,14 +384,8 @@ const onDelete = async (row) => {
 
 // 重置密码：调用管理员重置密码接口
 const submitResetPassword = async () => {
-  // 1. 校验新密码长度
   if (!resetPwdForm.pwd1 || resetPwdForm.pwd1.length < 6) {
     ElMessage.error('新密码至少 6 位');
-    return;
-  }
-  // 2. 校验两次密码是否一致
-  if (resetPwdForm.pwd1 !== resetPwdForm.pwd2) {
-    ElMessage.error('两次输入的密码不一致，请检查');
     return;
   }
   try {
@@ -402,13 +396,15 @@ const submitResetPassword = async () => {
     ElMessage.error(err.message || err);
   }
 };
+
 /* -------------------------------------------------
  * 6. 生命周期 + 表单校验规则
  * ------------------------------------------------- */
 // 页面挂载时：初始化加载用户列表和角色列表
 onMounted(() => {
+  alert('组件已挂载');   // 最直观
   console.log('当前权限：', getPerms());
-  console.log('是否包含重置密码权限：', getPerms().includes('user:admin-reset-password'));
+  // console.log('是否包含重置密码权限：', getPerms().includes('user:admin-reset-password'));
   requestUser();
   requestRole();
 });

@@ -1,22 +1,26 @@
 from datetime import datetime
+
+from django.db.models import Q
+from rest_framework import status
+# from utils.slider_captcha import *
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .serializers import *
-from .auth import *
-from rest_framework import status
-from auth.sysmenu.serializers import *
-from django.db.models import Q
-from auth.sysmenu.views import build_menu_tree
+
 from auth.permission.models import *
+from auth.sysmenu.serializers import *
+from auth.sysmenu.views import build_menu_tree
 from utils.permissions import CustomPermissionMixin
-# from utils.slider_captcha import *
-from rest_framework import viewsets
+from .auth import *
+from .serializers import *
+
 
 class LoginView(APIView):
     """
     登录视图，处理用户登录并返回 JWT token、用户信息、角色和菜单。
     """
+
     def get_all_menus_for_roles(self, role_ids):
         """
         获取与角色相关的所有菜单，包括子菜单和父菜单。
@@ -98,6 +102,7 @@ class LoginView(APIView):
             message = list(serializer.errors.values())[0][0]
             return Response({"message": message}, status=status.HTTP_400_BAD_REQUEST)
 
+
 # 修改密码
 class ResetPasswordView(APIView):
     def post(self, request):
@@ -113,6 +118,7 @@ class ResetPasswordView(APIView):
             message = list(serializer.errors.values())[0][0]
             return Response({"message": message}, status=status.HTTP_400_BAD_REQUEST)
 
+
 # 修改联系方式
 class UpdateContactInfoView(APIView):
     def post(self, request):
@@ -123,6 +129,7 @@ class UpdateContactInfoView(APIView):
             serializer.save()  # 保存新的手机号和邮箱
             return Response({"message": "联系方式更新成功"}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # 上传头像
 class ImageView(APIView):
@@ -161,10 +168,12 @@ class ImageView(APIView):
 
             except Exception as e:
                 # 捕获并返回异常
-                return Response({'message': '上传头像失败', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'message': '上传头像失败', 'error': str(e)},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # 当文件不存在时，返回错误响应
         return Response({'message': '未上传文件'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # 用户管理视图
 class UserViewSet(viewsets.ModelViewSet):
@@ -198,7 +207,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # 只有在参数不为空时才构造过滤条件
         if username:
-            q_filters &= Q(username__icontains=username)| Q(realname__icontains=username)
+            q_filters &= Q(username__icontains=username) | Q(realname__icontains=username)
 
         if status:
             q_filters &= Q(status=status)  # 按状态精确匹配
@@ -282,6 +291,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # 其他操作使用默认权限
         return super().get_permissions()
+
     def get_serializer_class(self):
         """
         根据请求内容返回不同的序列化器
@@ -292,7 +302,6 @@ class UserViewSet(viewsets.ModelViewSet):
             return AvatarUpdateSerializer
         return UserSerializer
 
-
     def destroy(self, request, *args, **kwargs):
         """
         删除用户
@@ -301,8 +310,10 @@ class UserViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 from utils.page import Pagination
 from django.utils.dateparse import parse_datetime
+
 
 class RequestLogSearchView(APIView):
     """
@@ -313,6 +324,7 @@ class RequestLogSearchView(APIView):
         'list': 'requestlog:list',
     }
     pagination_class = Pagination  # 使用自定义分页器
+
     def get(self, request, *args, **kwargs):
         # 获取查询参数
         search_query = request.GET.get('query', '')  # 获取 'q' 参数，默认空字符串
@@ -352,6 +364,7 @@ class RequestLogSearchView(APIView):
             serializer = RequestLogSerializer(page, many=True)
             return paginator.get_paginated_response(serializer.data)
 
+
 # 新增管理员重置视图2025-10-19
 # 放在文件末尾即可
 class AdminResetPasswordView(APIView):
@@ -359,7 +372,7 @@ class AdminResetPasswordView(APIView):
     管理员无需原密码，直接重置任意用户密码
     """
     permission_classes = [CustomPermissionMixin]
-    permission_code = 'user:resetpwd'   # 与前端按钮保持一致
+    permission_code = 'user:resetpwd'  # 与前端按钮保持一致
 
     def post(self, request):
         serializer = AdminResetPasswordSerializer(data=request.data)

@@ -31,14 +31,30 @@ const emit = defineEmits(['update:modelValue'])
 const localValue = ref(props.modelValue || '')
 const svgFiles = ref([])
 
-const svgModules = import.meta.glob('/src/assets/icons/*.svg')
+// const svgModules = import.meta.glob('/src/assets/icons/*.svg')
+// for (const path in svgModules) {
+//   svgModules[path]().then((module) => {
+//     svgFiles.value.push({
+//       path: module.default,
+//       name: getFileName(path)
+//     })
+//   })
+// }
+// const svgModules = import.meta.glob('/scr/assets/icons/*.svg')
+// '/scr/assets/icons/*.svg'方式有时会引用绝对目录导致出错
+const svgModules = import.meta.glob('../../assets/icons/*.svg')
 for (const path in svgModules) {
-  svgModules[path]().then((module) => {
-    svgFiles.value.push({
-      path: module.default,
-      name: getFileName(path)
+  svgModules[path]()
+    .then((module) => {
+      console.log('加载成功:', path, 'module.default:', module.default) // ← 关键日志
+      svgFiles.value.push({
+        path: module.default,
+        name: getFileName(path)
+      })
     })
-  })
+    .catch((err) => {
+      console.warn('加载失败:', path, err)
+    })
 }
 
 const showDropdown = ref(false)
