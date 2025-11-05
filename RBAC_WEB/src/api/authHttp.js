@@ -21,19 +21,33 @@ const login = (username, password, captcha_key = null, offset_x = null) => {
 // }
 
 //  普通用户修改密码
-const resetPassword = (password_old, pwd1, pwd2) => {
-  const path = '/api/auth/pwd';
-  return http.post(path, { password_old, pwd1, pwd2 });
-};
+// const resetPassword = (password_old, pwd1, pwd2) => {
+//   const path = '/api/auth/pwd';
+//   return http.post(path, { password_old, pwd1, pwd2 });
+// };
 
 /* ==================  管理员重置用户密码  ================== */
 // 2025-10-21 by wxh
 // 管理员重置用户密码
-const adminResetPassword = (userId, newPwd) => {
-  const path = '/api/auth/admin-reset-password';
-  return http.post(path, { user_id: userId, new_password: newPwd });
-};
+// const adminResetPassword = (userId, newPwd) => {
+//   const path = '/api/auth/admin-reset-password';
+//   return http.post(path, { user_id: userId, new_password: newPwd });
+// };
 
+// 修改/重置密码接口
+// const change_password = (userId, newPwd) => {
+//   const path = '/api/change_password';
+//   return http.post(path, { user_id: userId, new_password: newPwd });
+// };
+
+const changePassword = (data) => {
+  // data 里可能带：
+  // { old_password: 'xxx', new_password: 'yyy' }               // 自己改
+  // { user_id: 18, new_password: 'yyy' }                       // 管理员重置
+  console.log('[API-----] changePassword called with', data)
+  const path = '/api/auth/change_password';
+  return http.post(path, data);
+};
 // 修改联系方式
 const resetContact = (telephone, email) => {
   const path = '/api/auth/contact';
@@ -196,7 +210,7 @@ const requestLog = (start_time, end_time, query, page, size, params) => {
 // 导出包含 login 函数的对象
 export default {
   login,
-  resetPassword,
+  // resetPassword,
   resetContact,
   uploadImage,
   getUserInfo,
@@ -224,5 +238,6 @@ export default {
   // getSliderCaptcha,
   // verifySlider,
   sortMenu, // 排序
-  adminResetPassword   // <-- 新增
+  // adminResetPassword,   // <-- 新增
+  changePassword    // 修改/重置密码
 };

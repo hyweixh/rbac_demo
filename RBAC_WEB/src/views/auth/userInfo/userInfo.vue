@@ -1,100 +1,82 @@
+<!-- ==================== 0. 模板开始 ==================== -->
 <template>
   <div>
-    <!-- 1. 顶部筛选栏：用户搜索 + 新增按钮 -->
+    <!-- 顶部筛选栏：用户搜索 + 新增按钮 -->
     <el-card>
-      <!-- 用户名模糊搜索框 -->
+      <!-- v-model 双向绑定查询关键字；clearable 一键清空 -->
       <el-input
         placeholder="请输入用户名..."
         v-model="queryForm.username"
         clearable
         style="width: 15%"
-      ></el-input>
-
-      <!-- 搜索按钮：触发用户列表查询 -->
+      />
+      <!-- 点击后重新拉取表格数据 -->
       <el-button
         color="#626aef"
         icon="Search"
         @click="requestUser"
         style="margin-left: 0.5%"
-        >搜索</el-button
-      >
+      >搜索</el-button>
 
-      <!-- 新增用户按钮：权限控制（需user:add权限） -->
+      <!-- 权限按钮：具备 user:add 权限才渲染 -->
       <el-button
         v-if="hasPerm('user:add')"
         color="#626aef"
         icon="Plus"
         @click="handleAdd"
-      >
-        新增
-      </el-button>
-    </el-card> 
+      >新增</el-button>
+    </el-card>
 
-    <!-- 2. 表格容器：动态列渲染 + 主题适配 -->
+    <!-- 表格容器：动态列渲染 + 主题适配 -->
+    <!-- 通过 themeStore.theme 动态挂主题类名，实现暗黑/亮色 -->
     <div :class="['table-container', themeStore.theme]">
-      <el-table 
-        :data="tableData" 
-        style="width: 100%"
-        
-        :key="tableRenderKey" 
-      >
-        <!-- 动态列循环：用template包裹v-for明确作用域 -->       
+      <!-- :key="tableRenderKey" 强制重渲染，解决权限切换后列不更新问题 -->
+      <el-table :data="tableData" style="width: 100%" :key="tableRenderKey">
+        <!-- 遍历 columns 配置，实现“配置驱动”渲染 -->
         <template v-for="(col, index) in columns" :key="`col_${index}_${col.label}_${col.width || ''}`">
-           <!-- 列权限控制：无perm则显示，有perm需校验 -->
-          <el-table-column            
-            v-if="hasColumnPerm(col.perm)" 
-            :label="col.label"       
-            :width="col.width"         
-            :align="col.align || 'center'" 
-            :fixed="col.fixed" 
+          <!-- 先判断当前用户是否拥有该列权限 -->
+          <el-table-column
+            v-if="hasColumnPerm(col.perm)"
+            :label="col.label"
+            :width="col.width"
+            :align="col.align || 'center'"
+            :fixed="col.fixed"
           >
-            <!-- 列内容作用域插槽：根据列类型渲染不同内容 -->
+            <!-- 插槽内部根据 col.prop 区分不同列的展示逻辑 -->
             <template #default="scope">
-              <!-- 头像列：渲染用户头像 -->
+              <!-- 1. 头像列：拼后台静态资源地址 -->
               <template v-if="col.prop === 'avatar'">
-                <img
-                  :src="imageUrl + scope.row.avatar"
-                  alt="头像"
-                  width="35"
-                  height="35"
-                />
+                <img :src="imageUrl + scope.row.avatar" alt="头像" width="35" height="35" />
               </template>
 
-              <!-- 角色列：循环渲染用户关联的角色标签 -->
+              <!-- 2. 角色列：多条目标签 -->
               <template v-else-if="col.prop === 'roles'">
                 <el-tag
                   v-for="role in scope.row.roles"
                   :key="role.id"
                   :class="['primary-tag', themeStore.theme]"
                   effect="plain"
-                >
-                  {{ role.name }}
-                </el-tag>
+                >{{ role.name }}</el-tag>
               </template>
 
-              <!-- 状态列：根据用户状态显示不同标签 -->
+              <!-- 3. 状态列：数字转中文标签 -->
               <template v-else-if="col.prop === 'status'">
                 <el-tag v-if="scope.row.status === 1" type="success">正常</el-tag>
                 <el-tag v-else-if="scope.row.status === 2" type="warning">未激活</el-tag>
                 <el-tag v-else-if="scope.row.status === 3" type="danger">锁定</el-tag>
               </template>
 
-              <!-- 最后登录时间列：格式化时间戳 -->
+              <!-- 4. 最后登录时间：统一格式化 -->
               <template v-else-if="col.prop === 'last_login'">
                 {{ timeFormatter.stringFromDateTime(scope.row.last_login) }}
               </template>
 
-              <!-- 重置密码列：按钮触发密码重置 -->
-              <template v-else-if="col.prop === 'admin-reset-password'">
-                <el-button
-                  type="primary"
-                  @click="handleReset(scope.row)"
-                >
-                  重置密码
-                </el-button>
+              <!-- 5. 重置密码列：独立按钮 -->
+              <template v-else-if="col.prop === 'resetpwd'">
+                <el-button type="primary" @click="handleReset(scope.row)">重置密码</el-button>
               </template>
 
-              <!-- 操作列：编辑/删除按钮（分别做权限控制） -->
+              <!-- 6. 操作列：编辑/删除，再次权限判断 -->
               <template v-else-if="col.prop === 'action'">
                 <div style="display: flex; justify-content: space-around;">
                   <operation-button
@@ -106,250 +88,184 @@
                     v-if="hasPerm('user:delete')"
                     type="delete"
                     @click="handleDelete(scope.row)"
-                  /> 
+                  />
                 </div>
               </template>
 
-              <!-- 常规文本列：直接渲染字段值 -->
-              <template v-else>
-                {{ scope.row[col.prop] }}
-              </template>
+              <!-- 7. 默认列：直接输出字段值 -->
+              <template v-else>{{ scope.row[col.prop] }}</template>
             </template>
           </el-table-column>
         </template>
       </el-table>
     </div>
 
-    <!-- 3. 新增 / 编辑 用户对话框 -->
+    <!-- 新增 / 编辑 用户对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogMode === 'edit' ? '修改用户' : '新增用户'"
       width="25%"
       style="padding-right: 3%"
     >
-      <!-- 表单校验：结合rules做字段验证 -->
+      <!-- 表单校验：rules 绑定下方 reactive 对象 -->
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" />
-          <el-alert
-            title="默认初始密码：123456"
-            :closable="false"
-            style="line-height: 10px"
-            type="success"
-          ></el-alert>
+          <!-- 友好提示：初始密码固定 123456 -->
+          <el-alert title="默认初始密码：123456" :closable="false" type="success" style="line-height: 10px" />
         </el-form-item>
-        <el-form-item label="姓名" prop="realname">
-          <el-input v-model="form.realname" />
-        </el-form-item>
-        <el-form-item label="手机号" prop="telephone">
-          <el-input v-model="form.telephone" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" />
-        </el-form-item>
+
+        <el-form-item label="姓名" prop="realname"><el-input v-model="form.realname" /></el-form-item>
+        <el-form-item label="手机号" prop="telephone"><el-input v-model="form.telephone" /></el-form-item>
+        <el-form-item label="邮箱" prop="email"><el-input v-model="form.email" /></el-form-item>
+
+        <!-- 状态：单选组，值 1 正常 / 3 禁用 -->
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio :value="1">正常</el-radio>
             <el-radio :value="3">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
+
+        <!-- 角色：多选下拉，绑定的是角色 id 数组 -->
         <el-form-item label="角色">
           <el-select style="width: 100%" v-model="form.roles" multiple>
-            <el-option
-              v-for="i in Roles"
-              :key="i.id"
-              :label="i.name"
-              :value="i.id"
-            />
+            <el-option v-for="i in Roles" :key="i.id" :label="i.name" :value="i.id" />
           </el-select>
         </el-form-item>
       </el-form>
+
+      <!-- 底部按钮组 -->
       <template #footer>
         <el-button color="#626aef" plain @click="dialogVisible = false">取消</el-button>
+        <!-- 点击后先走表单校验，再走新增/修改接口 -->
         <el-button color="#626aef" plain @click="requestManagerUser">确认</el-button>
       </template>
     </el-dialog>
 
-    <!-- 4. 重置密码对话框 -->
-    <el-dialog
-      v-model="resetPwdDialogVisible"
-      title="重置密码"
-      width="25%"
-    >
-      <el-form ref="resetPwdFormRef" :model="resetPwdForm" label-width="100px">
-        <el-form-item label="用户名" disabled>
-          <el-input v-model="cur_user.username" />
-        </el-form-item>
-        <el-form-item
-          label="新密码"
-          prop="pwd1"
-          :rules="[{ required: true, message: '请输入新密码' }]"
-        >
-          <el-input v-model="resetPwdForm.pwd1" type="password" />
-        </el-form-item>
-        <el-form-item
-          label="确认密码"
-          prop="pwd2"
-          :rules="[{ required: true, message: '请再次输入新密码' }]"
-        >
-          <el-input v-model="resetPwdForm.pwd2" type="password" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button color="#626aef" plain @click="resetPwdDialogVisible = false">取消</el-button>
-        <el-button color="#626aef" @click="submitResetPassword">确认</el-button>
-      </template>
-    </el-dialog>
+    <!-- 复用 ChangePasswordDialog 组件：mode="reset" 表示管理员重置 -->
+    <ChangePasswordDialog
+      ref="pwdDialogRef"
+      mode="reset"
+      :api="doAdminResetPwd"
+    />
   </div>
 </template>
 
+<!-- ==================== 1. 逻辑脚本开始 ==================== -->
 <script setup>
 /* -------------------------------------------------
- * 0. 引入依赖：接口、Vue API、UI组件、工具函数等
+ * 0. 引入依赖
  * ------------------------------------------------- */
-import authHttp from '@/api/authHttp';          // 封装的axios实例（带token拦截）
-import { ref, reactive, onMounted, watch } from 'vue'; // Vue响应式API
-import { ElMessage } from 'element-plus';       // 消息提示组件
-import timeFormatter from '@/utils/timeFormatter'; // 时间格式化工具
-import OperationButton from '@/components/OperationButton.vue'; // 自定义操作按钮组件
-import { useThemeStore } from '@/stores/theme'; // Pinia主题状态管理
-import { getPerms } from '@/utils/permission';  // 权限工具函数
+import authHttp from '@/api/authHttp';          // 封装好的用户/角色相关接口
+import { ref, reactive, onMounted, watch } from 'vue';
+import { ElMessage } from 'element-plus';      // 消息提示
+import timeFormatter from '@/utils/timeFormatter';
+import OperationButton from '@/components/OperationButton.vue'; // 封装编辑/删除小按钮
+import { useThemeStore } from '@/stores/theme'; // pinia 主题仓库
+import { getPerms } from '@/utils/permission';   // 取当前用户权限数组
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'; // 重置密码弹窗
 
 /* -------------------------------------------------
- * 1. 响应式数据定义：页面状态、表单、表格数据等
+ * 2. 响应式数据
  * ------------------------------------------------- */
-const themeStore = useThemeStore();            // 主题状态（深色/浅色）
-let handleIndex = 0;                           // 行操作索引（预留）
-const cur_user = ref();                        // 重置密码时的当前用户
-const resetPwdDialogVisible = ref(false);      // 重置密码弹窗显隐
-const resetPwdForm = reactive({ pwd1: '', pwd2: '' }); // 重置密码表单
-const imageUrl = import.meta.env.VITE_BASE_URL + '/media/userAvatar/'; // 头像资源路径
-const dialogVisible = ref(false);              // 新增/编辑弹窗显隐
-const dialogMode = ref('add');                 // 弹窗模式：add/edit
-const tableData = ref([]);                     // 表格数据源
-const queryForm = ref({});                     // 搜索条件
-const formRef = ref(null);                     // 新增/编辑表单引用（用于校验）
-const form = ref({ status: 1 });               // 新增/编辑表单默认值
-const Roles = ref({});                         // 角色下拉选项（后端返回）
-const resetPwdFormRef = ref(null);             // 重置密码表单引用（用于校验）
+const themeStore     = useThemeStore();   // 主题
+const tableRenderKey = ref(1);            // 表格 key，强制重渲染
+const cur_user       = ref();             // 当前要重置密码的用户
+const imageUrl       = import.meta.env.VITE_BASE_URL + '/media/userAvatar/'; // 头像静态资源前缀
+const dialogVisible  = ref(false);        // 新增/编辑 弹窗显隐
+const dialogMode     = ref('add');        // 弹窗模式 add | edit
+const tableData      = ref([]);           // 表格数据
+const queryForm      = ref({});           // 顶部搜索条件
+const formRef        = ref(null);         // el-form 引用，用于校验
+const form           = ref({ status: 1 }); // 表单双向绑定对象，默认状态正常
+const Roles          = ref({});           // 所有角色下拉数据源
+const emit = defineEmits(['success', 'fail']) // 声明要抛出的事件
 
-// 表格重渲染key：权限变化时更新，确保列宽度重新计算
-const tableRenderKey = ref(1);
-
-// 动态列配置数组：统一管理列的显示、权限、样式（核心配置）
+/* -------------------------------------------------
+ * 3. 表格列配置：label/width/对齐/权限 一目了然
+ * ------------------------------------------------- */
 const columns = ref([
-  // 无权限控制的基础列
-  { prop: 'avatar', label: '头像', width: '80' },
-  { prop: 'username', label: '用户名', width: '100' },
-  { prop: 'realname', label: '姓名', width: '100' },
-  { prop: 'email', label: '邮箱', width: '200' },
-  { prop: 'roles', label: '角色', width: '200' },
-  { prop: 'status', label: '状态', width: '100' },
-  { prop: 'create_time', label: '创建时间', width: '200' },
+  { prop: 'avatar',     label: '头像',       width: '80' },
+  { prop: 'username',   label: '用户名',     width: '100' },
+  { prop: 'realname',   label: '姓名',       width: '100' },
+  { prop: 'email',      label: '邮箱',       width: '200' },
+  { prop: 'roles',      label: '角色',       width: '200' },
+  { prop: 'status',     label: '状态',       width: '100' },
+  { prop: 'create_time',label: '创建时间',   width: '200' },
   { prop: 'last_login', label: '最后登录时间', width: '200' },
-  { prop: 'remark', label: '备注' },
-  // 有权限控制的列（perm字段为权限标识）
-  { prop: 'admin-reset-password', label: '重置密码', width: '120', perm: 'user:admin-reset-password' },
-  { prop: 'action', label: '操作', width: '180', align: 'center', fixed: 'right' }
+  { prop: 'remark',     label: '备注' },
+  // 这两列需要额外权限才能看见
+  { prop: 'resetpwd',   label: '重置密码',   width: '120', perm: 'user:resetpwd' },
+  { prop: 'action',     label: '操作',       width: '180', align: 'center', fixed: 'right' }
 ]);
 
 /* -------------------------------------------------
- * 2. 权限判断方法：抽离复杂逻辑，提升模板可读性
+ * 4. 权限判断函数
  * ------------------------------------------------- */
-// 按钮/操作级权限判断
-const hasPerm = (perm) => {
-  const perms = getPerms();
-  return perms.includes(perm);
-};
+// 单一权限
+const hasPerm = perm => getPerms().includes(perm);
+// 列权限：如果没配置 perm 则默认放行
+const hasColumnPerm = perm => !perm || hasPerm(perm);
 
-// 列级权限判断：无perm则显示，有perm则校验
-const hasColumnPerm = (perm) => {
-  return !perm || hasPerm(perm);
-};
+// 当权限数组变化时，给表格换一个 key，达到“重新挂载”效果
+watch(getPerms, () => tableRenderKey.value++, { deep: true });
 
 /* -------------------------------------------------
- * 3. 监听权限变化：触发表格重渲染，避免列宽残留
+ * 5. 事件处理：增删改查 打开弹窗 重置密码
  * ------------------------------------------------- */
-watch(
-  () => getPerms(), // 监听权限数组变化
-  () => {
-    tableRenderKey.value++; // 权限变更时更新key，触发表格重新渲染
-  },
-  { deep: true } // 深度监听数组内部元素变化
-);
+const handleAdd  = () => showDialog(null, 'add');
+const handleEdit = row => showDialog(row, 'edit');
+const handleDelete = row => onDelete(row);
+const pwdDialogRef = ref(null);
 
-/* -------------------------------------------------
- * 4. 事件处理函数：页面交互逻辑（新增、编辑、删除、重置密码等）
- * ------------------------------------------------- */
-// 新增用户：打开弹窗并初始化表单
-const handleAdd = () => { showDialog(null, 'add'); };
-// 编辑用户：填充当前行数据到表单并打开弹窗
-const handleEdit = (row) => { showDialog(row, 'edit'); };
-// 删除用户：调用删除接口并刷新列表
-const handleDelete = (row) => { onDelete(row); };
-// 重置密码：保存当前用户并打开弹窗
-const handleReset = (row) => { resetPassword(row); };
-
-// 弹窗初始化：区分新增/编辑逻辑
+// 打开弹窗并做初始化
 const showDialog = (row, mode) => {
+  dialogMode.value = mode;
   if (mode === 'edit') {
-    Object.assign(form.value, row); // 浅拷贝行数据到表单
-    form.value.roles = row.roles.map((role) => role.id); // 角色转id数组
-    dialogMode.value = 'edit';
+    // 编辑：深拷贝行数据 + 把角色对象数组转成 id 数组
+    Object.assign(form.value, row);
+    form.value.roles = row.roles.map(r => r.id);
   } else {
-    // 新增：清空表单（保留默认状态）
-    Object.keys(form.value).forEach((key) => {
-      if (key !== 'status') form.value[key] = '';
-    });
-    dialogMode.value = 'add';
+    // 新增：清空旧数据，只保留默认状态
+    Object.keys(form.value).forEach(k => { if (k !== 'status') form.value[k] = '' });
   }
   dialogVisible.value = true;
 };
 
-// 重置密码弹窗初始化：保存当前用户并清空表单
-const resetPassword = (row) => {
+// 重置密码：把当前行缓存起来，然后打开复用组件
+
+const handleReset = row => {
   cur_user.value = row;
-  resetPwdForm.pwd1 = '';
-  resetPwdForm.pwd2 = '';
-  resetPwdDialogVisible.value = true;
+  pwdDialogRef.value.open();
 };
 
 /* -------------------------------------------------
- * 5. 接口请求函数：与后端交互（查询、新增、编辑、删除、重置密码）
+ * 6. 接口请求
  * ------------------------------------------------- */
-// 查询角色列表：用于下拉选择
+// 拉角色下拉
 const requestRole = async () => {
-  try {
-    const data = await authHttp.getRoleInfo();
-    Roles.value = data.results;
-  } catch (message) {
-    ElMessage.error(message);
-  }
+  try { Roles.value = (await authHttp.getRoleInfo()).results }
+  catch (e) { ElMessage.error(e.message) }
 };
 
-// 查询用户列表：支持模糊搜索
-const requestUser = async (username) => {
-  try {
-    username = queryForm.value.username;
-    const data = await authHttp.getUserInfo(username);
-    tableData.value = data.results;
-  } catch (message) {
-    ElMessage.error(message);
-  }
+// 拉用户表格
+const requestUser = async () => {
+  try { tableData.value = (await authHttp.getUserInfo(queryForm.value.username)).results }
+  catch (e) { ElMessage.error(e.message) }
 };
 
-// 新增/编辑用户：表单校验后调用对应接口
+// 新增 or 编辑 确定按钮
 const requestManagerUser = async () => {
-  formRef.value.validate(async (valid) => {
-    if (!valid) {
-      ElMessage.error('请按要求填写有效的信息');
-      return;
-    }
+  // 先走 el-form 校验
+  await formRef.value.validate(async valid => {
+    if (!valid) return ElMessage.error('请按要求填写有效信息');
+    // 组装 payload
     const data = {
       username: form.value.username,
       realname: form.value.realname,
       email: form.value.email,
-      password: '123456', // 新增时默认密码
+      password: '123456',          // 后台要求必传初始密码
       telephone: form.value.telephone,
       status: form.value.status,
       roles: form.value.roles
@@ -362,74 +278,66 @@ const requestManagerUser = async () => {
         await authHttp.updateUser(form.value.id, data);
         ElMessage.success('修改成功');
       }
-      requestUser(); // 刷新用户列表
+      // 重新拉表格 & 关闭弹窗
+      requestUser();
       dialogVisible.value = false;
-    } catch (message) {
-      ElMessage.error(message);
-    }
+    } catch (e) { ElMessage.error(e.message) }
   });
 };
 
-// 删除用户：调用删除接口并刷新列表
-const onDelete = async (row) => {
+// 删除
+const onDelete = async row => {
   try {
     await authHttp.DeleteUser(row.id);
     ElMessage.success('删除成功');
     requestUser();
-  } catch (message) {
-    console.error('【catch到的错误】', message);
-    ElMessage.error(message);  
-  }
+  } catch (e) { ElMessage.error(e.message) }
 };
 
-// 重置密码：调用管理员重置密码接口
-const submitResetPassword = async () => {
-  // 1. 校验新密码长度
-  if (!resetPwdForm.pwd1 || resetPwdForm.pwd1.length < 6) {
-    ElMessage.error('新密码至少 6 位');
-    return;
-  }
-  // 2. 校验两次密码是否一致
-  if (resetPwdForm.pwd1 !== resetPwdForm.pwd2) {
-    ElMessage.error('两次输入的密码不一致，请检查');
-    return;
-  }
-  try {
-    await authHttp.adminResetPassword(cur_user.value.id, resetPwdForm.pwd1);
-    ElMessage.success('密码重置成功');
-    resetPwdDialogVisible.value = false;
-  } catch (err) {
-    ElMessage.error(err.message || err);
-  }
+// 提供给 ChangePasswordDialog 的重置接口
+const doAdminResetPwd = async (newPwd) => {
+  await authHttp.changePassword({
+    user_id: cur_user.value.id,
+    new_password: newPwd
+  });
 };
+
+// 重置成功回调
+const onSuccess = () => {
+  // ElMessage.success(title.value + '成功')   // ← 删掉这一行
+  emit('success')   // 只抛事件给父组件
+}
+
 /* -------------------------------------------------
- * 6. 生命周期 + 表单校验规则
+ * 7. 生命周期 & 表单校验规则
  * ------------------------------------------------- */
-// 页面挂载时：初始化加载用户列表和角色列表
 onMounted(() => {
-  console.log('当前权限：', getPerms());
-  console.log('是否包含重置密码权限：', getPerms().includes('user:admin-reset-password'));
-  requestUser();
-  requestRole();
+  requestUser();  // 先拉表格
+  requestRole();  // 再拉角色下拉
 });
 
-// 表单校验规则：element-plus格式，字段级验证
+// 表单校验规则（el-form 的 :rules 绑定它）
 const rules = ref({
-  username: [{ required: true, message: '请输入用户名' }],
+  username: [
+    { required: true, message: '请输入用户名' }
+  ],
   email: [
     { required: true, message: '邮箱地址不能为空', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
   ],
   telephone: [
     { required: true, message: '手机号码不能为空', trigger: 'blur' },
-    { pattern: /^1[3|4|5|6|7|8|9][0-9]\d{8}$/, message: '请输入正确的手机号码', trigger: 'blur' }
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
   ],
-  realname: [{ required: true, message: '请输入姓名' }]
+  realname: [
+    { required: true, message: '请输入姓名' }
+  ]
 });
 </script>
 
+<!-- ==================== 2. 样式 ==================== -->
 <style scoped>
-/* 表格容器样式：增加顶部间距 */
+/* 仅仅给表格上方留一点间距 */
 .table-container {
   margin-top: 16px;
 }

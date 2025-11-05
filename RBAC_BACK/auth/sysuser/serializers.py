@@ -5,6 +5,8 @@ from rbac_demo import settings
 from rest_framework import exceptions   #异常类
 from auth.sysrole.serializers import *
 from django.core.cache import cache
+from auth.rbac.utils import get_user_perms
+from rest_framework.exceptions import ValidationError
 
 
 # 登录序列化
@@ -82,31 +84,6 @@ class UserSerializer(serializers.ModelSerializer):
         # print('当前用户角色：',roles)
         return SysRoleSerializer([role.role for role in roles], many=True).data
 
-
-#修改密码序列化
-class ResetPasswordSerializer(serializers.Serializer):
-    password_old = serializers.CharField(required=True,min_length=6,max_length=50)
-    pwd1 = serializers.CharField(required=True,min_length=6,max_length=50)
-    pwd2 = serializers.CharField(required=True,min_length=6,max_length=50)
-
-    def validate(self, attrs):
-        password_old = attrs['password_old']
-        pwd1 = attrs['pwd1']
-        pwd2 = attrs['pwd2']
-
-        # 获取当前请求的用户对象
-        user = self.context['request'].user
-        # 验证旧密码是否匹配
-        if not user.check_password(password_old):
-            raise exceptions.ValidationError("旧密码错误")
-
-        if pwd1 != pwd2:
-            raise exceptions.ValidationError("两次密码输入不一致")
-        elif pwd1 == password_old:
-            raise exceptions.ValidationError("新密码不能与旧密码一致")
-        return attrs
-
-# 修改用户信息序列化
 class UpdateContactInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = opsUser
@@ -146,22 +123,79 @@ class RequestLogSerializer(serializers.ModelSerializer):
         model = RequestLog
         fields = '__all__'
 
-#  2025-10-19
-# 放在文件末尾即可
-class AdminResetPasswordSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField(required=True, label='用户ID')
-    new_password = serializers.CharField(
-        required=True, min_length=6, max_length=50, label='新密码'
-    )
+class UnifiedPasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    new_password = serializers.CharField(required=True,  min_length=6, write_only=True)
+    user_id    = serializers.IntegerField(required=False)   # 管理员场景才需要
 
-    def validate_user_id(self, value):
-        if not opsUser.objects.filter(id=value).exists():
+    def validate(self, attrs):
+        request = self.context['request']
+        user    = request.user
+        new_pwd = attrs['new_password']
+
+        # 1. 用户自己改密码（带了 old_password）
+        if attrs.get('old_password') is not None:
+            if not user.check_password(attrs['old_password']):
+                raise serializers.ValidationError('原密码错误')
+            attrs['target_user'] = user
+            return attrs
+
+        # 2. 管理员重置密码（没带 old_password）
+        # 调用auth\rbac\utils.py中的get_user_perms，获取当前用户的权限
+        perms = get_user_perms(request.user)
+        print("888888888888:",perms)
+        if 'user:resetpwd' not in perms:
+            raise ValidationError('无权限执行重置密码操作')
+
+        target_id = attrs.get('user_id')
+        if not target_id:
+            raise serializers.ValidationError('请指定要重置的用户')
+        try:
+            attrs['target_user'] = opsUser.objects.get(id=target_id)
+        except opsUser.DoesNotExist:
             raise serializers.ValidationError('用户不存在')
-        return value
+        return attrs
+
+    # from rest_framework.exceptions import ValidationError
+    # from rbac.utils import get_user_perms
+
+    def validate(self, attrs):
+        request = self.context['request']
+        user = request.user
+        new_pwd = attrs['new_password']
+
+        # 1. 用户自己改密码（带了 old_password）
+        if attrs.get('old_password') is not None:
+            if not user.check_password(attrs['old_password']):
+                raise ValidationError('原密码错误')
+            # ★ 新旧不能一样
+            if user.check_password(new_pwd):
+                raise ValidationError('新密码不能与当前密码相同')
+            attrs['target_user'] = user
+            return attrs
+
+        # 2. 管理员重置密码（没带 old_password）
+        perms = get_user_perms(user)
+        if 'user:resetpwd' not in perms:
+            raise ValidationError('无权限执行重置密码操作')
+
+        target_id = attrs.get('user_id')
+        if not target_id:
+            raise ValidationError('请指定要重置的用户')
+        try:
+            target_user = opsUser.objects.get(id=target_id)
+        except opsUser.DoesNotExist:
+            raise ValidationError('用户不存在')
+
+        # ★ 管理员场景：新密码也不能和被重置人当前密码相同
+        if target_user.check_password(new_pwd):
+            raise ValidationError('新密码不能与被重置用户的当前密码相同')
+
+        attrs['target_user'] = target_user
+        return attrs
 
     def save(self, **kwargs):
-        user = opsUser.objects.get(id=self.validated_data['user_id'])
+        user = self.validated_data['target_user']
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
-

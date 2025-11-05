@@ -389,7 +389,7 @@ const submitResetPassword = async () => {
     return;
   }
   try {
-    await authHttp.adminResetPassword(cur_user.value.id, resetPwdForm.pwd1);
+    await authHttp.changePassword(cur_user.value.id, resetPwdForm.pwd1);
     ElMessage.success('密码重置成功');
     resetPwdDialogVisible.value = false;
   } catch (err) {

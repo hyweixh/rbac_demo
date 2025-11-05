@@ -104,19 +104,19 @@ class LoginView(APIView):
 
 
 # 修改密码
-class ResetPasswordView(APIView):
-    def post(self, request):
-        serializer = ResetPasswordSerializer(data=request.data, context={'request': request})
-        # 检查序列化数据是否有效
-        if serializer.is_valid():
-            pwd1 = serializer.validated_data.get('pwd1')
-            request.user.set_password(pwd1)
-            request.user.save()
-            return Response({"message": "密码修改成功"}, status=status.HTTP_200_OK)
-        else:
-            print(serializer.errors)
-            message = list(serializer.errors.values())[0][0]
-            return Response({"message": message}, status=status.HTTP_400_BAD_REQUEST)
+# class ResetPasswordView(APIView):
+#     def post(self, request):
+#         serializer = ResetPasswordSerializer(data=request.data, context={'request': request})
+#         # 检查序列化数据是否有效
+#         if serializer.is_valid():
+#             pwd1 = serializer.validated_data.get('pwd1')
+#             request.user.set_password(pwd1)
+#             request.user.save()
+#             return Response({"message": "密码修改成功"}, status=status.HTTP_200_OK)
+#         else:
+#             print(serializer.errors)
+#             message = list(serializer.errors.values())[0][0]
+#             return Response({"message": message}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # 修改联系方式
@@ -367,15 +367,31 @@ class RequestLogSearchView(APIView):
 
 # 新增管理员重置视图2025-10-19
 # 放在文件末尾即可
-class AdminResetPasswordView(APIView):
+# class AdminResetPasswordView(APIView):
+#     """
+#     管理员无需原密码，直接重置任意用户密码
+#     """
+#     permission_classes = [CustomPermissionMixin]
+#     permission_code = 'user:resetpwd'  # 与前端按钮保持一致
+#
+#     def post(self, request):
+#         serializer = AdminResetPasswordSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response({'message': '密码已重置'}, status=status.HTTP_200_OK)
+
+# 新增：统一修改/重置密码视图
+class ChangePasswordView(APIView):
     """
-    管理员无需原密码，直接重置任意用户密码
+    一个接口同时支持：
+    1. 用户自己修改密码（必须传 old_password）
+    2. 管理员重置用户密码（不传 old_password，需要 user:resetpwd 权限）
     """
-    permission_classes = [CustomPermissionMixin]
-    permission_code = 'user:resetpwd'  # 与前端按钮保持一致
+    permission_classes = [IsAuthenticated]   # 登录即可调用
+    # print("1105----",permission_classes)
 
     def post(self, request):
-        serializer = AdminResetPasswordSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({'message': '密码已重置'}, status=status.HTTP_200_OK)
+        ser = UnifiedPasswordSerializer(data=request.data, context={'request': request})
+        ser.is_valid(raise_exception=True)
+        ser.save()          # 真正的改密/重置逻辑写在序列化器里
+        return Response({'message': '密码已更新'}, status=status.HTTP_200_OK)

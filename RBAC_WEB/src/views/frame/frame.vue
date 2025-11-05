@@ -25,8 +25,6 @@
         <!-- 面包屑 -->
           <Breadcrumb />
 
-
-
         <!-- 头像框 -->
         <Avatar />
       </el-header>

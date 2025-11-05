@@ -15,13 +15,28 @@ export const checkPermission = (permission, callback) => {
   }
 }
 
+
+// ① 模块级缓存
+let permsCache = null
 /**
- * ② 新函数：只返回权限数组，不弹窗、不回调
- * 适合模板 v-if / 指令里多次调用
- * @returns {string[]} 例如 ["user:list","user:edit"]
+ * 只返回权限数组，不弹窗、不回调
+ * 第一次会把 Pinia 数据缓存下来，后续直接读缓存
  */
 export function getPerms() {
-  const authStore = useAuthStore()
-  // console.log("当前用户权限：", authStore.permissions) 
-  return authStore.permissions || []
+    // 如果已有缓存，直接返回  
+    if (permsCache !== null) return permsCache
+
+    // 第一次：真正去 store 里拿
+    const authStore = useAuthStore()
+    permsCache = authStore.permissions || []
+    // 保留原来的调试日志（只打一次）
+    console.log('当前用户权限-1105：', permsCache)
+    return permsCache
+}
+
+/**
+ * 如果登录后权限有变动，手动清一下缓存即可
+ */
+export function clearPermsCache() {
+  permsCache = null
 }
