@@ -9,4 +9,6 @@
 		init_menu_and_permission.py
 		bind_role_menu_permission.py
 		init_admin.py （初始账号密码：admin/admin123）
-4.分配权限时，普通用户要分配role.list权限，否则点击"用户管理"，提示错误（红框），后续细化提示内容		
+4.1015-11-05
+		修改/重置密码公用一个组件
+		分配权限时，普通用户要分配role.list权限，否则点击"用户管理"，提示错误（红框），后续细化提示内容		
