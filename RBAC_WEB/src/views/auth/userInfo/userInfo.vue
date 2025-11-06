@@ -20,7 +20,7 @@
 
       <!-- 权限按钮：具备 user:add 权限才渲染 -->
       <el-button
-        v-if="hasPerm('user:add')"
+        v-permission="'user:add'"
         color="#626aef"
         icon="Plus"
         @click="handleAdd"
@@ -73,19 +73,22 @@
 
               <!-- 5. 重置密码列：独立按钮 -->
               <template v-else-if="col.prop === 'resetpwd'">
-                <el-button type="primary" @click="handleReset(scope.row)">重置密码</el-button>
-              </template>
-
+                <el-button
+                  v-permission="'user:resetpwd'"
+                  type="primary"
+                  @click="handleReset(scope.row)"
+                   >重置密码</el-button>
+              </template>   
               <!-- 6. 操作列：编辑/删除，再次权限判断 -->
               <template v-else-if="col.prop === 'action'">
                 <div style="display: flex; justify-content: space-around;">
                   <operation-button
-                    v-if="hasPerm('user:edit')"
+                    v-permission="'user:edit'"
                     type="edit"
                     @click="handleEdit(scope.row)"
                   />
                   <operation-button
-                    v-if="hasPerm('user:delete')"
+                    v-permission="'user:delete'"
                     type="delete"
                     @click="handleDelete(scope.row)"
                   />
@@ -148,6 +151,7 @@
       ref="pwdDialogRef"
       mode="reset"
       :api="doAdminResetPwd"
+      @success="onResetSuccess"
     />
   </div>
 </template>
@@ -180,7 +184,8 @@ const queryForm      = ref({});           // 顶部搜索条件
 const formRef        = ref(null);         // el-form 引用，用于校验
 const form           = ref({ status: 1 }); // 表单双向绑定对象，默认状态正常
 const Roles          = ref({});           // 所有角色下拉数据源
-const emit = defineEmits(['success', 'fail']) // 声明要抛出的事件
+// 1. 声明要抛出的事件
+const emit = defineEmits(['success', 'fail'])
 
 /* -------------------------------------------------
  * 3. 表格列配置：label/width/对齐/权限 一目了然

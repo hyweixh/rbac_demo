@@ -48,6 +48,7 @@ const changePassword = (data) => {
   const path = '/api/auth/change_password';
   return http.post(path, data);
 };
+
 // 修改联系方式
 const resetContact = (telephone, email) => {
   const path = '/api/auth/contact';

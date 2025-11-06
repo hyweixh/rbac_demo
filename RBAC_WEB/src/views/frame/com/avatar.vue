@@ -9,7 +9,7 @@
 
     <template #dropdown>
       <el-dropdown-menu>
-        <!-- 1. 修改密码：先提示，再打开弹窗 -->
+        <!-- 1. 修改密码-->
         <el-dropdown-item @click="onChpwdDialog">
           修改密碼
         </el-dropdown-item>

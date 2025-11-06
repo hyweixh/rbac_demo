@@ -1,184 +1,191 @@
 <script setup>
-import authHttp from '@/api/authHttp';
-import { ref, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
-import timeFormatter from '@/utils/timeFormatter';
-import OperationButton from '@/components/OperationButton.vue';
-import { useThemeStore } from '@/stores/theme';
-const themeStore = useThemeStore();
+    import authHttp from '@/api/authHttp';
+    import { ref, onMounted } from 'vue';
+    import { ElMessage } from 'element-plus';
+    import timeFormatter from '@/utils/timeFormatter';
+    import OperationButton from '@/components/OperationButton.vue';
+    import { useThemeStore } from '@/stores/theme';
+    const themeStore = useThemeStore();
 
-import { useDarkMode } from '@/stores/isDark';
-const { isDark } = useDarkMode();
+    import { useDarkMode } from '@/stores/isDark';
+    const { isDark } = useDarkMode();
 
-const goBack = () => {
-  drawerVisible.value = false;
-};
+    const goBack = () => {
+      drawerVisible.value = false;
+    };
 
-const dialogVisible = ref(false); // 控制新增对话框的可见性
-const dialogMode = ref('add'); // 用来标记当前操作模式：'add', 'edit', 'copy'
-const tableData = ref([]); //角色表格
-const tableData_permission = ref([]); //角色表格
+    const dialogVisible = ref(false); // 控制新增对话框的可见性
+    const dialogMode = ref('add'); // 用来标记当前操作模式：'add', 'edit', 'copy'
+    const tableData = ref([]); //角色表格
+    const tableData_permission = ref([]); //角色表格
 
-const formRef = ref(null);
-const form = ref({});
-const menuTree = ref([]); // 菜单树数据
-const drawerVisible = ref(false); // 控制抽屉可见性
-const selectedRole = ref(null); // 保存当前选中的角色
-const treeRef = ref(null); // 保存el-tree组件实例，用于获取选中的节点
-const selectedMenuId = ref(null); // 添加一个ref来存储当前选中的菜单id
-const selectedPermissions = ref([]); // 用于存储选中的权限ID
+    const formRef = ref(null);
+    const form = ref({});
+    const menuTree = ref([]); // 菜单树数据
+    const drawerVisible = ref(false); // 控制抽屉可见性
+    const selectedRole = ref(null); // 保存当前选中的角色
+    const treeRef = ref(null); // 保存el-tree组件实例，用于获取选中的节点
+    const selectedMenuId = ref(null); // 添加一个ref来存储当前选中的菜单id
+    const selectedPermissions = ref([]); // 用于存储选中的权限ID
 
-// 显示新增或编辑vm对话框并重置表单
-const showDialog = (row, mode) => {
-  if (mode === 'edit') {
-    Object.assign(form.value, row); // 将选中行的数据填充到表单中
-    dialogMode.value = 'edit';
-  } else {
-    Object.keys(form.value).forEach((key) => {
-      if (key !== 'status') {
-        form.value[key] = ''; // 重置除了 status 的其他字段
+    // 显示新增或编辑vm对话框并重置表单
+    const showDialog = (row, mode) => {
+      if (mode === 'edit') {
+        Object.assign(form.value, row); // 将选中行的数据填充到表单中
+        dialogMode.value = 'edit';
+      } else {
+        Object.keys(form.value).forEach((key) => {
+          if (key !== 'status') {
+            form.value[key] = ''; // 重置除了 status 的其他字段
+          }
+        });
+        dialogMode.value = 'add';
       }
-    });
-    dialogMode.value = 'add';
-  }
-  dialogVisible.value = true;
-};
-
-const requestRole = async () => {
-  try {
-    const data = await authHttp.getRoleInfo();
-    tableData.value = data.results;
-  } catch (message) {
-    ElMessage.error(message);
-  }
-};
-
-// 请求菜单树
-const requestMenu = async () => {
-  try {
-    const data = await authHttp.getMenu();
-    menuTree.value = data;
-  } catch (message) {
-    ElMessage.error(message);
-  }
-};
-
-//请求权限数据
-const requesPermission = async (menu_id) => {
-  try {
-    const data = await authHttp.getPermission(menu_id, 1, 100);
-    tableData_permission.value = data.results;
-  } catch (message) {
-    ElMessage.error(message);
-  }
-};
-
-// 调用请求权限数据的方法，并传递选中节点的 id
-const handleNodeClick = (node) => {
-  selectedMenuId.value = node.id;
-  requesPermission(node.id);
-};
-
-// 分配菜单
-const assign_menu = async () => {
-  try {
-    // 获取选中的菜单ID
-    const checkedKeys = treeRef.value.getCheckedKeys(); // 获取选中菜单节点的ID列表
-
-    const Menudata = {
-      role_id: selectedRole.value.id, // 当前选中的角色ID
-      menu_ids: checkedKeys // 选中的菜单ID数组，直接传递ID数组
+      dialogVisible.value = true;
     };
 
-    const rolePermissionData = {
-      role: selectedRole.value.id,
-      permissions: selectedPermissions.value
-    };
-
-    await authHttp.assignMenu(Menudata);
-    await authHttp.addRolePermission(rolePermissionData);
-    ElMessage.success('权限分配成功');
-    drawerVisible.value = false; // 成功后关闭抽屉
-  } catch (message) {
-    ElMessage.error(message);
-  }
-};
-
-// 点击分配权限按钮时，打开抽屉并保存当前选中的角色
-const openAssignMenuDrawer = async (row) => {
-  requestMenu();
-  drawerVisible.value = true; // 打开抽屉
-  selectedRole.value = row; // 保存当前选中的角色
-  try {
-    // 获取当前角色已有的权限菜单ID数组
-    const assignedMenuIds = await authHttp.getRoleMenu(row.id);
-    // 提取所有的菜单 ID
-    const checkedKeys = assignedMenuIds.map((menu) => menu.id);
-    console.log(checkedKeys);
-    // 自动勾选菜单节点
-    treeRef.value.setCheckedKeys(checkedKeys);
-
-    const rolePermissions = await authHttp.getRolePermission(row.id); // 请求角色已分配的权限
-
-    selectedPermissions.value = rolePermissions.map((item) => item.permission); //勾选按钮
-  } catch (message) {
-    ElMessage.error(message);
-  }
-};
-
-onMounted(() => {
-  requestRole();
-});
-
-const requestManagerRole = async () => {
-  formRef.value.validate(async (valid) => {
-    if (valid) {
-      const data = {
-        name: form.value.name,
-        code: form.value.code,
-        remark: form.value.remark
-      };
+    const requestRole = async () => {
       try {
-        if (dialogMode.value === 'add') {
-          await authHttp.addRole(data);
-          ElMessage.success('添加成功');
-        } else if (dialogMode.value === 'edit') {
-          await authHttp.updateRole(form.value.id, data);
-          ElMessage.success('修改成功');
-        }
-        requestRole();
-        dialogVisible.value = false;
+        const data = await authHttp.getRoleInfo();
+        tableData.value = data.results;
       } catch (message) {
         ElMessage.error(message);
       }
-    } else {
-      ElMessage.error('按要求填写有效的信息');
-    }
-  });
-};
+    };
 
-//删除
-const onDelete = async (row) => {
-  try {
-    await authHttp.DeleteRole(row.id);
-    ElMessage.success('删除成功');
-    requestRole();
-  } catch (message) {
-    ElMessage.error(message);
-  }
-};
+    // 请求菜单树
+    const requestMenu = async () => {
+      try {
+        const data = await authHttp.getMenu();
+        menuTree.value = data;
+      } catch (message) {
+        ElMessage.error(message);
+      }
+    };
 
-const rules = ref({
-  name: [{ required: true, message: '角色名称不能为空', trigger: 'blur' }],
-  code: [{ required: true, message: '权限标识不能为空', trigger: 'blur' }]
-});
+    //请求权限数据
+    const requesPermission = async (menu_id) => {
+      try {
+        const data = await authHttp.getPermission(menu_id, 1, 100);
+        tableData_permission.value = data.results;
+      } catch (message) {
+        ElMessage.error(message);
+      }
+    };
+
+    // 调用请求权限数据的方法，并传递选中节点的 id
+    const handleNodeClick = (node) => {
+      selectedMenuId.value = node.id;
+      requesPermission(node.id);
+    };
+
+    // 分配菜单
+    const assign_menu = async () => {
+      try {
+        // 获取选中的菜单ID
+        const checkedKeys = treeRef.value.getCheckedKeys(); // 获取选中菜单节点的ID列表
+
+        const Menudata = {
+          role_id: selectedRole.value.id, // 当前选中的角色ID
+          menu_ids: checkedKeys // 选中的菜单ID数组，直接传递ID数组
+        };
+
+        const rolePermissionData = {
+          role: selectedRole.value.id,
+          permissions: selectedPermissions.value
+        };
+
+        await authHttp.assignMenu(Menudata);
+        await authHttp.addRolePermission(rolePermissionData);
+        ElMessage.success('权限分配成功');
+        drawerVisible.value = false; // 成功后关闭抽屉
+      } catch (message) {
+        ElMessage.error(message);
+      }
+    };
+
+    // 点击分配权限按钮时，打开抽屉并保存当前选中的角色
+    const openAssignMenuDrawer = async (row) => {
+      requestMenu();
+      drawerVisible.value = true; // 打开抽屉
+      selectedRole.value = row; // 保存当前选中的角色
+      try {
+        // 获取当前角色已有的权限菜单ID数组
+        const assignedMenuIds = await authHttp.getRoleMenu(row.id);
+        // 提取所有的菜单 ID
+        const checkedKeys = assignedMenuIds.map((menu) => menu.id);
+        console.log(checkedKeys);
+        // 自动勾选菜单节点
+        treeRef.value.setCheckedKeys(checkedKeys);
+
+        const rolePermissions = await authHttp.getRolePermission(row.id); // 请求角色已分配的权限
+
+        selectedPermissions.value = rolePermissions.map((item) => item.permission); //勾选按钮
+      } catch (message) {
+        ElMessage.error(message);
+      }
+    };
+
+    onMounted(() => {
+      requestRole();
+    });
+
+    const requestManagerRole = async () => {
+      formRef.value.validate(async (valid) => {
+        if (valid) {
+          const data = {
+            name: form.value.name,
+            code: form.value.code,
+            remark: form.value.remark
+          };
+          try {
+            if (dialogMode.value === 'add') {
+              await authHttp.addRole(data);
+              ElMessage.success('添加成功');
+            } else if (dialogMode.value === 'edit') {
+              await authHttp.updateRole(form.value.id, data);
+              ElMessage.success('修改成功');
+            }
+            requestRole();
+            dialogVisible.value = false;
+          } catch (message) {
+            ElMessage.error(message);
+          }
+        } else {
+          ElMessage.error('按要求填写有效的信息');
+        }
+      });
+    };
+
+    //删除
+    const onDelete = async (row) => {
+      try {
+        await authHttp.DeleteRole(row.id);
+        ElMessage.success('删除成功');
+        requestRole();
+      } catch (message) {
+        ElMessage.error(message);
+      }
+    };
+
+    const rules = ref({
+      name: [{ required: true, message: '角色名称不能为空', trigger: 'blur' }],
+      code: [{ required: true, message: '权限标识不能为空', trigger: 'blur' }]
+    });
 </script>
 
 <template>
   <div>
     <!-- 表格数据 -->
-    <el-card>
-      <el-button color="#626aef" :dark="isDark" icon="Plus" @click="showDialog(false)">新增角色</el-button>
+    <el-card v-permission="'role:add'">
+      <el-button        
+        color="#626aef"
+        :dark="isDark"
+        icon="Plus"
+        @click="showDialog(false)"
+      >
+        新增角色
+      </el-button>
     </el-card>
     <div :class="['table-container', themeStore.theme]">
       <el-table :data="tableData" style="width: 100%">
@@ -192,7 +199,7 @@ const rules = ref({
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" align="center" />
-        <el-table-column label="权限设置" align="center">
+        <el-table-column v-permission="'role:menuList'" label="权限设置" align="center">
           <template #default="{ row }">
             <el-button color="#626aef" plain :dark="isDark" size="small" icon="Menu" @click="openAssignMenuDrawer(row)">菜单权限</el-button>
           </template>
@@ -201,8 +208,8 @@ const rules = ref({
         <el-table-column prop="action" label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <div style="display: flex; justify-content: space-around">
-              <operation-button type="edit" @click="showDialog(row, 'edit')" />
-              <operation-button type="delete" @click="onDelete(row)" />
+              <operation-button v-permission="'role:edit'" type="edit" @click="showDialog(row, 'edit')" />
+              <operation-button v-permission="'role:delete'" type="delete" @click="onDelete(row)" />
             </div>
           </template>
         </el-table-column>

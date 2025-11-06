@@ -171,10 +171,10 @@ const getTagType = (method) => {
 <template>
   <div :class="['table-container', themeStore.theme]" style="width: 75%; margin-top: 0.7%;   padding: 0 10px; height: 89.8vh">
     <div style="display: flex; justify-content: space-between; margin: 1% 0%">
-      <el-button :dark="isDark" icon="Plus" color="#626aef" @click="showDialog_permission(false, 'add')">添加</el-button>
-      <el-button :dark="isDark" icon="download" color="#626aef" @click="exportPermissions">导出</el-button>
+      <el-button v-permission="'permission:add'" :dark="isDark" icon="Plus" color="#626aef" @click="showDialog_permission(false, 'add')">添加</el-button>
+      <el-button v-permission="'permission:export'" :dark="isDark" icon="download" color="#626aef" @click="exportPermissions">导出</el-button>
     </div>
-    <el-table ref="tableRef" :data="tableData" border style="height: 78vh">
+    <el-table ref="tableRef" :data="tableData" border style="height: 78vh" >
       <el-table-column type="index" label="序号" align="center" width="80" />
       <el-table-column prop="name" label="权限名称" align="center" />
       <el-table-column prop="code" label="权限标识" align="center" />
@@ -193,12 +193,15 @@ const getTagType = (method) => {
         </template>
       </el-table-column>
       <el-table-column prop="remark" label="备注" align="center" />
-      <el-table-column prop="action" label="操作" width="150" align="center">
+      <el-table-column v-permission="'permission:edit'" prop="action" label="操作" width="150" align="center">
         <template #default="{ row }">
           <div style="display: flex; justify-content: space-around">
-            <operation-button type="edit" @click="showDialog_permission(row, 'edit')" />
-            <operation-button type="copy" @click="showDialog_permission(row, 'copy')" />
-            <operation-button type="delete" @click="deletePermission(row)" />
+            <operation-button v-permission="'permission:edit' "
+                type="edit" @click="showDialog_permission(row, 'edit')" />
+            <operation-button v-permission="'permission:copy'"
+                type="copy" @click="showDialog_permission(row, 'copy')" />
+            <operation-button v-permission="'permission:delete'"
+                type="delete" @click="deletePermission(row)" />
           </div>
         </template>
       </el-table-column>

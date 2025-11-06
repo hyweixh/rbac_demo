@@ -228,7 +228,7 @@ onMounted(() => {
   <div style="display: flex">
     <!-- 菜单列表 -->
     <div style="width: 25%; margin-top: 0.5%; margin-right: 0.5%">
-      <el-card class="menu-card">
+      <el-card v-permission="'menu:list'" class="menu-card">
         <div class="menu-item" style="margin-left: 1%">
           <SvgIcon style="margin-right: 1%" name="menu"
             :filter="themeStore.theme === 'dark' ? 'grayscale(1) brightness(2)' : ''" />
@@ -253,31 +253,39 @@ onMounted(() => {
         <!-- 菜单操作按钮 -->
         <div class="operation-buttons">
           <el-tooltip effect="dark" content="添加菜单" placement="top">
-            <el-icon class="custom-icon" @click="showDialog('', 'add')">
+            <el-icon v-permission="'menu:add'" class="custom-icon" @click="showDialog('', 'add')">
               <Plus />
             </el-icon>
           </el-tooltip>
 
           <el-tooltip effect="dark" content="编辑菜单" placement="top">
-            <el-icon class="custom-icon" @click="handleEdit">
+            <el-icon v-permission="'menu:edit'" class="custom-icon" @click="handleEdit">
               <Edit />
             </el-icon>
           </el-tooltip>
 
           <el-tooltip effect="dark" content="菜单上移" placement="top">
-            <el-icon class="custom-icon" :class="{ 'is-disabled': isMoving }" @click="!isMoving && handleMove('up')">
+            <el-icon 
+                v-permission="'menu:edit'"
+                class="custom-icon" :class="{ 'is-disabled': isMoving }" 
+                @click="!isMoving && handleMove('up')"
+            >
               <ArrowUp />
             </el-icon>
           </el-tooltip>
 
-          <el-tooltip effect="dark" content="菜单下移" placement="top">
-            <el-icon class="custom-icon" :class="{ 'is-disabled': isMoving }" @click="!isMoving && handleMove('down')">
+          <el-tooltip  effect="dark" content="菜单下移" placement="top">
+            <el-icon 
+                v-permission="'menu:edit'"
+                class="custom-icon" :class="{ 'is-disabled': isMoving }" 
+                @click="!isMoving && handleMove('down')"
+            >
               <ArrowDown />
             </el-icon>
           </el-tooltip>
 
           <el-tooltip effect="dark" content="删除菜单" placement="top">
-            <el-icon class="custom-icon" @click="handleDelete">
+            <el-icon v-permission="'menu:delete'" class="custom-icon" @click="handleDelete">
               <Delete />
             </el-icon>
           </el-tooltip>

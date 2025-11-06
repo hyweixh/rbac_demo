@@ -17,19 +17,19 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 // 完整导入 表格库
 import VxeUITable from 'vxe-table'
 import 'vxe-table/lib/style.css'
-
 import 'virtual:svg-icons-register' //注册svg脚本
 import globalComponent from '@/components/install.js'
-
 import App from './App.vue'
 import router from './router'
 import 'nprogress/nprogress.css'
 import 'animate.css'
-
-
 import "amfe-flexible/index.js";  //rem布局
-
+/* 1. 引入指令（跟你已有的别的导出互不影响） */
+import { permission } from '@/utils/permission'
 const app = createApp(App)
+
+/* 2. 注册全局指令 */
+app.directive('permission', permission)
 //注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
