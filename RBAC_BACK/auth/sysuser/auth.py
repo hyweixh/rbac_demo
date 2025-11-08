@@ -13,7 +13,7 @@ def generate_jwt(user):
     # timestamp = int(time.time()) + 3
     # exp是一个特殊的参数，用于表示token过期的时间
     token = jwt.encode({"userid": user.pk, "exp": timestamp}, key=settings.SECRET_KEY, algorithm="HS256")
-    print("token--->",token)
+    # print("token--->",token)
     # token存入数据库
     user.latest_token = token
     user.save()

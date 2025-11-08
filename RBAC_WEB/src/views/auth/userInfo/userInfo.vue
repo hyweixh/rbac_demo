@@ -251,13 +251,13 @@ const handleReset = row => {
 // 拉角色下拉
 const requestRole = async () => {
   try { Roles.value = (await authHttp.getRoleInfo()).results }
-  catch (e) { ElMessage.error(e.message) }
+  catch (e) { ElMessage.error(e) }
 };
 
 // 拉用户表格
 const requestUser = async () => {
   try { tableData.value = (await authHttp.getUserInfo(queryForm.value.username)).results }
-  catch (e) { ElMessage.error(e.message) }
+  catch (e) { ElMessage.error(e) }
 };
 
 // 新增 or 编辑 确定按钮
@@ -286,7 +286,8 @@ const requestManagerUser = async () => {
       // 重新拉表格 & 关闭弹窗
       requestUser();
       dialogVisible.value = false;
-    } catch (e) { ElMessage.error(e.message) }
+      //  ElMessage.error(e.message) 弹出红框
+    } catch (e) { ElMessage.error(e) }
   });
 };
 
@@ -296,7 +297,7 @@ const onDelete = async row => {
     await authHttp.DeleteUser(row.id);
     ElMessage.success('删除成功');
     requestUser();
-  } catch (e) { ElMessage.error(e.message) }
+  } catch (e) { ElMessage.error(e) }
 };
 
 // 提供给 ChangePasswordDialog 的重置接口

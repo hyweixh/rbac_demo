@@ -5,7 +5,7 @@ from rbac_demo import settings
 from rest_framework import exceptions   #异常类
 from auth.sysrole.serializers import *
 from django.core.cache import cache
-from auth.rbac.utils import get_user_perms
+from auth.rbac.utils.permissions import get_user_perms
 from rest_framework.exceptions import ValidationError
 
 

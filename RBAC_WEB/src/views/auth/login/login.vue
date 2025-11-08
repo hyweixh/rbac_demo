@@ -4,7 +4,7 @@
     <div class="wow-bg-cc">
       <h3 class="colorboard">RBAC</h3>
       <p class="text-muted">登录您的帐户</p>
-      <el-form :model="form" class="login-form" status-icon @submit.prevent>
+      <el-form :model="form" status-icon @submit.prevent>
         <el-form-item :rules="[{ required: true, message: '请输入用户名', trigger: 'blur' }]" class="loginInput">
           <el-input v-model="form.username" prefix-icon="User" size="large" placeholder="Username" />
         </el-form-item>
@@ -58,7 +58,7 @@ const onSubmit = async () => {
     // 跳转到首页
     router.push({ name: 'home' })
   } catch (e) {
-    ElMessage.error(e.message || '登录失败，请重试')
+    ElMessage.error(e || '登录失败，请重试')
   } finally {
     loginLoading.value = false
   }
